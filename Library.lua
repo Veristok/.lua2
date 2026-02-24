@@ -4155,11 +4155,14 @@ do
         Visible = Info.Visible,
 
         Type = "Slider",
+        
+        -- Уникальный ID для этого слайдера
+        dragId = 0,
     }
 
     local Holder = New("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 31), -- Оригинальная высота
+        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 31),
         Visible = Slider.Visible,
         Parent = Container,
     })
@@ -4187,13 +4190,13 @@ do
         Parent = Holder,
     })
 
-    -- Контейнер для значения (справа)
+    -- Контейнер для значения (справа над слайдером)
     local ValueLabel = New("TextLabel", {
         BackgroundTransparency = 1,
-        Position = UDim2.new(1, -40, 0, -20), -- Справа над слайдером
+        Position = UDim2.new(1, -40, 0, -18),
         Size = UDim2.new(0, 40, 0, 14),
         Text = "",
-        TextSize = 12,
+        TextSize = 11,
         TextXAlignment = Enum.TextXAlignment.Right,
         ZIndex = 4,
         Parent = Bar,
@@ -4227,12 +4230,12 @@ do
         Parent = Fill,
     })
 
-    -- Маленький круглый ползунок (12px) без обводки
+    -- Маленький круглый ползунок (10px) без обводки
     local Thumb = New("TextButton", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "FontColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(12, 12),
+        Size = UDim2.fromOffset(10, 10),
         Text = "",
         ZIndex = 3,
         Parent = Bar,
@@ -4364,7 +4367,7 @@ do
         Slider:Display()
     end
 
-    -- Локальные переменные для drag'а (для каждого слайдера свои)
+    -- Локальные переменные для drag'а
     local dragging = false
     local touchId = nil
 
@@ -4372,6 +4375,9 @@ do
         if Slider.Disabled then return end
         dragging = true
         touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
+        
+        -- Устанавливаем уникальный ID для этого драга
+        Slider.dragId = tick()
 
         for _, side in Library.ActiveTab.Sides do
             side.ScrollingEnabled = false
@@ -4379,13 +4385,13 @@ do
     end
 
     local function updateDrag(input)
+        -- Проверяем что это именно этот слайдер драгается
         if not dragging or Slider.Disabled then return end
         
         if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= touchId then
             return
         end
 
-        -- Используем позицию мыши или касания
         local pos = input.Position
         local location = pos.X
         
@@ -4402,6 +4408,7 @@ do
     end
 
     local function endDrag(input)
+        -- Проверяем что это именно этот слайдер
         if not dragging then return end
         
         if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= touchId then
@@ -4410,13 +4417,14 @@ do
 
         dragging = false
         touchId = nil
+        Slider.dragId = 0
 
         for _, side in Library.ActiveTab.Sides do
             side.ScrollingEnabled = true
         end
     end
 
-    -- Обработчики ввода
+    -- Обработчики ввода для этого конкретного слайдера
     Bar.InputBegan:Connect(function(input)
         if IsClickInput(input) then
             startDrag(input)
@@ -4430,37 +4438,35 @@ do
         end
     end)
 
-    -- Отслеживаем движение
-    local connection
-    connection = UserInputService.InputChanged:Connect(function(input)
-        if dragging and IsHoverInput(input) then
+    -- Глобальные сигналы с проверкой на конкретный слайдер
+    local inputChangedConn = UserInputService.InputChanged:Connect(function(input)
+        -- Проверяем что драгается именно этот слайдер
+        if dragging and Slider.dragId > 0 and IsHoverInput(input) then
             updateDrag(input)
         end
     end)
-    table.insert(Library.Signals, connection)
+    table.insert(Library.Signals, inputChangedConn)
 
-    -- Отслеживаем отпускание
-    local endConnection
-    endConnection = UserInputService.InputEnded:Connect(function(input)
-        if IsClickInput(input) then
+    local inputEndedConn = UserInputService.InputEnded:Connect(function(input)
+        if IsClickInput(input) and dragging and Slider.dragId > 0 then
             endDrag(input)
         end
     end)
-    table.insert(Library.Signals, endConnection)
+    table.insert(Library.Signals, inputEndedConn)
 
     -- Визуальная обратная связь на ПК
     if not Library.IsMobile then
         Thumb.MouseEnter:Connect(function()
             if Slider.Disabled then return end
             TweenService:Create(Thumb, Library.TweenInfo, {
-                Size = UDim2.fromOffset(14, 14)
+                Size = UDim2.fromOffset(12, 12)
             }):Play()
         end)
 
         Thumb.MouseLeave:Connect(function()
             if Slider.Disabled then return end
             TweenService:Create(Thumb, Library.TweenInfo, {
-                Size = UDim2.fromOffset(12, 12)
+                Size = UDim2.fromOffset(10, 10)
             }):Play()
         end)
     end

@@ -4159,7 +4159,7 @@ do
 
     local Holder = New("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 39), -- Увеличил высоту для размещения элементов
+        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 39),
         Visible = Slider.Visible,
         Parent = Container,
     })
@@ -4190,28 +4190,26 @@ do
             Parent = TitleContainer,
         })
 
-        -- Текущее значение и суффикс
+        -- Текущее значение и суффикс (только здесь)
         local ValueSuffixLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.new(0.4, -4, 1, 0),
             Text = "", -- Будет обновляться в Display()
             TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Right, -- Выравнивание вправо
+            TextXAlignment = Enum.TextXAlignment.Right,
             TextTransparency = 0.3,
             Parent = TitleContainer,
         })
 
-        -- Функция для обновления суффикса
         function Slider:SetSuffix(NewSuffix)
             Slider.Suffix = NewSuffix
-            Slider:Display() -- Обновим отображение
+            Slider:Display()
         end
 
-        -- Сохраняем ссылку на лейбл значения
         Slider.ValueLabel = ValueSuffixLabel
     end
 
-    -- Слайдер на всю ширину как и был
+    -- Слайдер на всю ширину
     local Bar = New("TextButton", {
         Active = not Slider.Disabled,
         AnchorPoint = Vector2.new(0, 1),
@@ -4219,31 +4217,19 @@ do
         BorderColor3 = "OutlineColor",
         BorderSizePixel = 1,
         Position = UDim2.fromScale(0, 1),
-        Size = UDim2.new(1, 0, 0, 13), -- Оставляем исходную ширину
+        Size = UDim2.new(1, 0, 0, 13),
         Text = "",
         Parent = Holder,
     })
 
-    -- Овальная форма (скругленные края)
+    -- Овальная форма
     New("UICorner", {
-        CornerRadius = UDim.new(1, 0), -- Максимальное скругление для овала
+        CornerRadius = UDim.new(1, 0),
         Parent = Bar,
     })
 
-    local DisplayLabel = New("TextLabel", {
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        Text = "",
-        TextSize = 14,
-        ZIndex = 2,
-        Parent = Bar,
-    })
-    New("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-        Color = "DarkColor",
-        LineJoinMode = Enum.LineJoinMode.Miter,
-        Parent = DisplayLabel,
-    })
+    -- Убираем DisplayLabel полностью, так как значение не нужно показывать на слайдере
+    -- Вместо этого делаем слайдер "немым"
 
     local Fill = New("Frame", {
         BackgroundColor3 = "AccentColor",
@@ -4251,7 +4237,6 @@ do
         Parent = Bar,
     })
     
-    -- Заполнение тоже с овальными краями
     New("UICorner", {
         CornerRadius = UDim.new(1, 0),
         Parent = Fill,
@@ -4265,7 +4250,6 @@ do
         if SliderLabel then
             SliderLabel.TextTransparency = Slider.Disabled and 0.8 or 0
         end
-        DisplayLabel.TextTransparency = Slider.Disabled and 0.8 or 0
 
         Fill.BackgroundColor3 = Slider.Disabled and Library.Scheme.OutlineColor or Library.Scheme.AccentColor
         Library.Registry[Fill].BackgroundColor3 = Slider.Disabled and "OutlineColor" or "AccentColor"
@@ -4276,40 +4260,9 @@ do
             return
         end
 
-        local CustomDisplayText = nil
-        if Info.FormatDisplayValue then
-            CustomDisplayText = Info.FormatDisplayValue(Slider, Slider.Value)
-        end
-
-        if CustomDisplayText then
-            DisplayLabel.Text = tostring(CustomDisplayText)
-            
-            -- Обновляем лейбл со значением и суффиксом
-            if Slider.ValueLabel then
-                Slider.ValueLabel.Text = string.format("%s%s", Slider.Value, Slider.Suffix)
-            end
-        else
-            if Info.Compact then
-                DisplayLabel.Text =
-                    string.format("%s: %s%s%s", Slider.Text, Slider.Prefix, Slider.Value, Slider.Suffix)
-            elseif Info.HideMax then
-                DisplayLabel.Text = string.format("%s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix)
-            else
-                DisplayLabel.Text = string.format(
-                    "%s%s%s/%s%s%s",
-                    Slider.Prefix,
-                    Slider.Value,
-                    Slider.Suffix,
-                    Slider.Prefix,
-                    Slider.Max,
-                    Slider.Suffix
-                )
-            end
-            
-            -- Обновляем лейбл со значением и суффиксом для отображения справа от названия
-            if Slider.ValueLabel then
-                Slider.ValueLabel.Text = string.format("%s%s", Slider.Value, Slider.Suffix)
-            end
+        -- Обновляем только лейбл со значением и суффиксом справа от названия
+        if Slider.ValueLabel then
+            Slider.ValueLabel.Text = string.format("%s%s", Slider.Value, Slider.Suffix)
         end
 
         local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
@@ -4375,7 +4328,6 @@ do
         Slider.Text = Text
         if SliderLabel then
             SliderLabel.Text = Text
-            return
         end
         Slider:Display()
     end

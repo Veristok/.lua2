@@ -8039,14 +8039,22 @@ function Library:CreateWindow(WindowInfo)
         Library:Toggle()
     end, true)
     
-    -- Делаем кнопку круглой
-    ToggleButton.Button.BackgroundTransparency = 1 -- Убираем фон
-    ToggleButton.Button.Size = UDim2.fromOffset(60, 60)
+    -- Полностью очищаем кнопку
+    ToggleButton.Button:ClearAllChildren() -- Удаляем все дочерние элементы
+    ToggleButton.Button.BackgroundTransparency = 1 -- Прозрачный фон
+    ToggleButton.Button.BackgroundColor3 = Color3.new(1, 1, 1) -- Не важно, т.к. прозрачно
+    ToggleButton.Button.Size = UDim2.fromOffset(70, 70) -- Чуть больше размер
     ToggleButton.Button.Text = ""
+    
+    -- Делаем кнопку круглой
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(1, 0)
+    ButtonCorner.Parent = ToggleButton.Button
     
     -- Создаем картинку на всю кнопку
     local ToggleImage = Instance.new("ImageLabel")
-    ToggleImage.Size = UDim2.fromScale(1, 1)
+    ToggleImage.Name = "ToggleImage"
+    ToggleImage.Size = UDim2.fromScale(1, 1) -- На всю кнопку
     ToggleImage.Position = UDim2.fromScale(0.5, 0.5)
     ToggleImage.AnchorPoint = Vector2.new(0.5, 0.5)
     ToggleImage.BackgroundTransparency = 1
@@ -8057,21 +8065,18 @@ function Library:CreateWindow(WindowInfo)
     ImageCorner.CornerRadius = UDim.new(1, 0)
     ImageCorner.Parent = ToggleImage
     
-    -- Добавляем обводку
-    Library:AddOutline(ToggleImage)
+    -- Добавляем обводку вокруг картинки
+    local ImageStroke = Instance.new("UIStroke")
+    ImageStroke.Color = Library.Scheme.OutlineColor
+    ImageStroke.Thickness = 2
+    ImageStroke.Parent = ToggleImage
     
-    -- Устанавливаем картинку если она указана
+    -- Устанавливаем картинку
     if WindowInfo.MobileToggleIcon then
         ToggleImage.Image = "rbxassetid://" .. tostring(WindowInfo.MobileToggleIcon)
-    else
-        -- Если картинка не указана, используем иконку по умолчанию из библиотеки
-        local DefaultIcon = Library:GetIcon("menu")
-        if DefaultIcon then
-            ToggleImage.Image = DefaultIcon.Url
-            ToggleImage.ImageRectOffset = DefaultIcon.ImageRectOffset
-            ToggleImage.ImageRectSize = DefaultIcon.ImageRectSize
-            ToggleImage.ImageColor3 = Library.Scheme.AccentColor
-        end
+        ToggleImage.ImageRectOffset = Vector2.new(0, 0)
+        ToggleImage.ImageRectSize = Vector2.new(0, 0)
+        ToggleImage.ScaleType = Enum.ScaleType.Fit -- Чтобы картинка не искажалась
     end
     
     -- Кнопка Lock без изменений
@@ -8080,18 +8085,22 @@ function Library:CreateWindow(WindowInfo)
         self:SetText(Library.CantDragForced and "Unlock" or "Lock")
     end, true)
     
+    -- Делаем Lock кнопку меньше и аккуратнее (опционально)
+    LockButton.Button.Size = UDim2.fromOffset(70, 35)
+    LockButton.Button.BackgroundColor3 = Library.Scheme.MainColor
+    
     -- Позиционирование
     if WindowInfo.MobileButtonsSide == "Right" then
-        ToggleButton.Button.Position = UDim2.new(1, -80, 0, 6)
+        ToggleButton.Button.Position = UDim2.new(1, -90, 0, 10)
         ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
         
-        LockButton.Button.Position = UDim2.new(1, -80, 0, 76)
+        LockButton.Button.Position = UDim2.new(1, -90, 0, 90)
         LockButton.Button.AnchorPoint = Vector2.new(1, 0)
     else
-        ToggleButton.Button.Position = UDim2.fromOffset(6, 6)
-        LockButton.Button.Position = UDim2.fromOffset(6, 76)
+        ToggleButton.Button.Position = UDim2.fromOffset(10, 10)
+        LockButton.Button.Position = UDim2.fromOffset(10, 90)
     end
-end
+                            end
 
     --// Execution \\--
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function()

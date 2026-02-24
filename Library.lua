@@ -4126,7 +4126,104 @@ do
         return Input
     end
 
-    function Funcs:AddSlider(Idx, Info)
+    -- ГЛОБАЛЬНЫЕ СИГНАЛЫ - ВСТАВЬ ЭТО В САМОМ НАЧАЛЕ БИБЛИОТЕКИ (после создания Library)
+do
+    local activeSlider = nil
+    
+    -- Сигнал для движения
+    Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
+        if not IsHoverInput(input) then return end
+        
+        if activeSlider and activeSlider.isDragging and not activeSlider.Disabled then
+            if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= activeSlider.touchId then
+                return
+            end
+
+            local bar = activeSlider.Holder:FindFirstChildWhichIsA("TextButton")
+            if not bar then return end
+            local track = bar:FindFirstChildWhichIsA("Frame")
+            if not track then return end
+            
+            local pos = input.Position
+            local location = pos.X
+            local scale = math.clamp((location - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+
+            local oldValue = activeSlider.Value
+            activeSlider.Value = Round(activeSlider.Min + ((activeSlider.Max - activeSlider.Min) * scale), activeSlider.Rounding)
+
+            if activeSlider.Value ~= oldValue then
+                activeSlider:Display()
+                Library:SafeCallback(activeSlider.Callback, activeSlider.Value)
+                Library:SafeCallback(activeSlider.Changed, activeSlider.Value)
+            end
+        end
+    end))
+
+    -- Сигнал для начала драга
+    Library:GiveSignal(UserInputService.InputBegan:Connect(function(input)
+        if IsClickInput(input) then
+            -- Ищем слайдер под мышкой/пальцем
+            for _, slider in Options do
+                if slider.Type == "Slider" and not slider.Disabled then
+                    local bar = slider.Holder and slider.Holder:FindFirstChildWhichIsA("TextButton")
+                    if bar and Library:MouseIsOverFrame(bar, input.Position) then
+                        -- Выключаем все другие слайдеры
+                        for _, other in Options do
+                            if other.Type == "Slider" and other ~= slider then
+                                other.isDragging = false
+                                other.touchId = nil
+                            end
+                        end
+                        
+                        slider.isDragging = true
+                        slider.touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
+                        activeSlider = slider
+
+                        for _, side in Library.ActiveTab.Sides do
+                            side.ScrollingEnabled = false
+                        end
+                        
+                        -- Сразу обновляем позицию
+                        local location = input.Position.X
+                        local scale = math.clamp((location - bar.AbsolutePosition.X) / bar.AbsoluteSize.X, 0, 1)
+
+                        local oldValue = slider.Value
+                        slider.Value = Round(slider.Min + ((slider.Max - slider.Min) * scale), slider.Rounding)
+
+                        if slider.Value ~= oldValue then
+                            slider:Display()
+                            Library:SafeCallback(slider.Callback, slider.Value)
+                            Library:SafeCallback(slider.Changed, slider.Value)
+                        end
+                        break
+                    end
+                end
+            end
+        end
+    end))
+
+    -- Сигнал для отпускания
+    Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
+        if not IsClickInput(input) then return end
+        
+        if activeSlider and activeSlider.isDragging then
+            if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= activeSlider.touchId then
+                return
+            end
+
+            activeSlider.isDragging = false
+            activeSlider.touchId = nil
+            activeSlider = nil
+
+            for _, side in Library.ActiveTab.Sides do
+                side.ScrollingEnabled = true
+            end
+        end
+    end))
+end
+
+-- ФУНКЦИЯ ADDSLIDER - ЗАМЕНИ ЭТУ ФУНКЦИЮ В БИБЛИОТЕКЕ
+function Funcs:AddSlider(Idx, Info)
     Info = Library:Validate(Info, Templates.Slider)
 
     local Groupbox = self
@@ -4156,7 +4253,6 @@ do
 
         Type = "Slider",
         
-        -- Флаг что этот слайдер сейчас двигается
         isDragging = false,
         touchId = nil,
     }
@@ -4191,7 +4287,7 @@ do
         Parent = Holder,
     })
 
-    -- Контейнер для значения (справа над слайдером)
+    -- Значение справа над слайдером
     local ValueLabel = New("TextLabel", {
         BackgroundTransparency = 1,
         Position = UDim2.new(1, -40, 0, -18),
@@ -4203,7 +4299,7 @@ do
         Parent = Bar,
     })
 
-    -- Овальный трек (фон)
+    -- Овальный трек
     local Track = New("Frame", {
         AnchorPoint = Vector2.new(0, 0.5),
         BackgroundColor3 = "MainColor",
@@ -4219,7 +4315,7 @@ do
         Parent = Track,
     })
 
-    -- Заполненная часть трека
+    -- Заполненная часть
     local Fill = New("Frame", {
         BackgroundColor3 = "AccentColor",
         Size = UDim2.fromScale(0.5, 1),
@@ -4231,7 +4327,7 @@ do
         Parent = Fill,
     })
 
-    -- Маленький круглый ползунок (10px) без обводки
+    -- Круглый ползунок 10px БЕЗ ОБВОДКИ
     local Thumb = New("TextButton", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "FontColor",
@@ -4368,59 +4464,6 @@ do
         Slider:Display()
     end
 
-    -- Обработчики ввода для этого слайдера
-    Bar.InputBegan:Connect(function(input)
-        if IsClickInput(input) and not Slider.Disabled then
-            -- Сбрасываем флаг у всех других слайдеров
-            for _, otherSlider in Options do
-                if otherSlider.Type == "Slider" and otherSlider ~= Slider then
-                    otherSlider.isDragging = false
-                    otherSlider.touchId = nil
-                end
-            end
-            
-            Slider.isDragging = true
-            Slider.touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
-
-            for _, side in Library.ActiveTab.Sides do
-                side.ScrollingEnabled = false
-            end
-            
-            -- Сразу обновляем позицию
-            local pos = input.Position
-            local location = pos.X
-            local scale = math.clamp((location - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
-
-            local oldValue = Slider.Value
-            Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * scale), Slider.Rounding)
-
-            if Slider.Value ~= oldValue then
-                Slider:Display()
-                Library:SafeCallback(Slider.Callback, Slider.Value)
-                Library:SafeCallback(Slider.Changed, Slider.Value)
-            end
-        end
-    end)
-
-    Thumb.InputBegan:Connect(function(input)
-        if IsClickInput(input) and not Slider.Disabled then
-            -- Сбрасываем флаг у всех других слайдеров
-            for _, otherSlider in Options do
-                if otherSlider.Type == "Slider" and otherSlider ~= Slider then
-                    otherSlider.isDragging = false
-                    otherSlider.touchId = nil
-                end
-            end
-            
-            Slider.isDragging = true
-            Slider.touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
-
-            for _, side in Library.ActiveTab.Sides do
-                side.ScrollingEnabled = false
-            end
-        end
-    end)
-
     -- Визуальная обратная связь на ПК
     if not Library.IsMobile then
         Thumb.MouseEnter:Connect(function()
@@ -4454,78 +4497,7 @@ do
     Options[Idx] = Slider
 
     return Slider
-end
-
--- ЕДИНСТВЕННЫЕ глобальные сигналы (добавь это в самом начале библиотеки, например после создания Library)
-task.spawn(function()
-    -- Сигнал для движения
-    Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
-        if not IsHoverInput(input) then return end
-        
-        -- Ищем активный слайдер
-        local activeSlider = nil
-        for _, slider in Options do
-            if slider.Type == "Slider" and slider.isDragging and not slider.Disabled then
-                activeSlider = slider
-                break
-            end
-        end
-        
-        if activeSlider then
-            -- Проверяем touchId для телефона
-            if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= activeSlider.touchId then
-                return
-            end
-
-            -- Находим Track этого слайдера
-            local bar = activeSlider.Holder:FindFirstChildWhichIsA("TextButton")
-            if not bar then return end
-            local track = bar:FindFirstChildWhichIsA("Frame")
-            if not track then return end
-            
-            local pos = input.Position
-            local location = pos.X
-            local scale = math.clamp((location - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-
-            local oldValue = activeSlider.Value
-            activeSlider.Value = Round(activeSlider.Min + ((activeSlider.Max - activeSlider.Min) * scale), activeSlider.Rounding)
-
-            if activeSlider.Value ~= oldValue then
-                activeSlider:Display()
-                Library:SafeCallback(activeSlider.Callback, activeSlider.Value)
-                Library:SafeCallback(activeSlider.Changed, activeSlider.Value)
-            end
-        end
-    end))
-
-    -- Сигнал для отпускания
-    Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
-        if not IsClickInput(input) then return end
-        
-        -- Ищем активный слайдер
-        local activeSlider = nil
-        for _, slider in Options do
-            if slider.Type == "Slider" and slider.isDragging then
-                activeSlider = slider
-                break
-            end
-        end
-        
-        if activeSlider then
-            -- Проверяем touchId для телефона
-            if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= activeSlider.touchId then
-                return
-            end
-
-            activeSlider.isDragging = false
-            activeSlider.touchId = nil
-
-            for _, side in Library.ActiveTab.Sides do
-                side.ScrollingEnabled = true
-            end
-        end
-    end))
-end)
+                end
         
     function Funcs:AddDropdown(Idx, Info)
         Info = Library:Validate(Info, Templates.Dropdown)

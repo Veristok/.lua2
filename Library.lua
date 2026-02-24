@@ -4456,37 +4456,44 @@ do
     return Slider
 end
 
--- ЕДИНСТВЕННЫЕ глобальные сигналы (добавь это где-то в начале библиотеки, после создания Library)
+-- ЕДИНСТВЕННЫЕ глобальные сигналы (добавь это в самом начале библиотеки, например после создания Library)
 task.spawn(function()
     -- Сигнал для движения
     Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
         if not IsHoverInput(input) then return end
         
         -- Ищем активный слайдер
+        local activeSlider = nil
         for _, slider in Options do
             if slider.Type == "Slider" and slider.isDragging and not slider.Disabled then
-                -- Проверяем touchId для телефона
-                if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= slider.touchId then
-                    return
-                end
-
-                -- Находим Track этого слайдера
-                local track = slider.Holder:FindFirstChildWhichIsA("TextButton"):FindFirstChildWhichIsA("Frame")
-                if not track then return end
-                
-                local pos = input.Position
-                local location = pos.X
-                local scale = math.clamp((location - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
-
-                local oldValue = slider.Value
-                slider.Value = Round(slider.Min + ((slider.Max - slider.Min) * scale), slider.Rounding)
-
-                if slider.Value ~= oldValue then
-                    slider:Display()
-                    Library:SafeCallback(slider.Callback, slider.Value)
-                    Library:SafeCallback(slider.Changed, slider.Value)
-                end
+                activeSlider = slider
                 break
+            end
+        end
+        
+        if activeSlider then
+            -- Проверяем touchId для телефона
+            if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= activeSlider.touchId then
+                return
+            end
+
+            -- Находим Track этого слайдера
+            local bar = activeSlider.Holder:FindFirstChildWhichIsA("TextButton")
+            if not bar then return end
+            local track = bar:FindFirstChildWhichIsA("Frame")
+            if not track then return end
+            
+            local pos = input.Position
+            local location = pos.X
+            local scale = math.clamp((location - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+
+            local oldValue = activeSlider.Value
+            activeSlider.Value = Round(activeSlider.Min + ((activeSlider.Max - activeSlider.Min) * scale), activeSlider.Rounding)
+
+            if activeSlider.Value ~= oldValue then
+                activeSlider:Display()
+                Library:SafeCallback(activeSlider.Callback, activeSlider.Value)
+                Library:SafeCallback(activeSlider.Changed, activeSlider.Value)
             end
         end
     end))
@@ -4496,20 +4503,25 @@ task.spawn(function()
         if not IsClickInput(input) then return end
         
         -- Ищем активный слайдер
+        local activeSlider = nil
         for _, slider in Options do
             if slider.Type == "Slider" and slider.isDragging then
-                -- Проверяем touchId для телефона
-                if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= slider.touchId then
-                    return
-                end
-
-                slider.isDragging = false
-                slider.touchId = nil
-
-                for _, side in Library.ActiveTab.Sides do
-                    side.ScrollingEnabled = true
-                end
+                activeSlider = slider
                 break
+            end
+        end
+        
+        if activeSlider then
+            -- Проверяем touchId для телефона
+            if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= activeSlider.touchId then
+                return
+            end
+
+            activeSlider.isDragging = false
+            activeSlider.touchId = nil
+
+            for _, side in Library.ActiveTab.Sides do
+                side.ScrollingEnabled = true
             end
         end
     end))

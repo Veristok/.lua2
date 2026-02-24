@@ -7063,6 +7063,119 @@ function Library:CreateWindow(WindowInfo)
             return Tab:AddGroupbox({ Side = 2, Name = Name, IconName = IconName })
         end
 
+        function Tab:AddFullGroupbox(Name, IconName)
+    -- Создаем специальный контейнер для FullBox (в левой стороне но на всю ширину)
+    local BoxHolder = New("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        Size = UDim2.new(2, 6, 0, 0), -- Ширина как два GroupBox + промежуток
+        Parent = self.Sides[1], -- Используем левую сторону (TabLeft)
+    })
+    New("UIListLayout", {
+        Padding = UDim.new(0, 6),
+        Parent = BoxHolder,
+    })
+    New("UIPadding", {
+        PaddingBottom = UDim.new(0, 4),
+        PaddingTop = UDim.new(0, 4),
+        Parent = BoxHolder,
+    })
+
+    local GroupboxHolder
+    local GroupboxLabel
+
+    local GroupboxContainer
+    local GroupboxList
+
+    do
+        GroupboxHolder = New("Frame", {
+            BackgroundColor3 = "BackgroundColor",
+            Size = UDim2.fromScale(1, 0),
+            Parent = BoxHolder,
+        })
+        New("UICorner", {
+            CornerRadius = UDim.new(0, Library.CornerRadius), -- Используем Library.CornerRadius
+            Parent = GroupboxHolder,
+        })
+        Library:AddOutline(GroupboxHolder)
+
+        Library:MakeLine(GroupboxHolder, {
+            Position = UDim2.fromOffset(0, 34),
+            Size = UDim2.new(1, 0, 0, 1),
+        })
+
+        local BoxIcon = Library:GetCustomIcon(IconName)
+        if BoxIcon then
+            New("ImageLabel", {
+                Image = BoxIcon.Url,
+                ImageColor3 = BoxIcon.Custom and "WhiteColor" or "AccentColor",
+                ImageRectOffset = BoxIcon.ImageRectOffset,
+                ImageRectSize = BoxIcon.ImageRectSize,
+                Position = UDim2.fromOffset(6, 6),
+                Size = UDim2.fromOffset(22, 22),
+                Parent = GroupboxHolder,
+            })
+        end
+
+        GroupboxLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(BoxIcon and 24 or 0, 0),
+            Size = UDim2.new(1, 0, 0, 34),
+            Text = Name,
+            TextSize = 15,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = GroupboxHolder,
+        })
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, 12),
+            PaddingRight = UDim.new(0, 12),
+            Parent = GroupboxLabel,
+        })
+
+        GroupboxContainer = New("Frame", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(0, 35),
+            Size = UDim2.new(1, 0, 1, -35),
+            Parent = GroupboxHolder,
+        })
+
+        GroupboxList = New("UIListLayout", {
+            Padding = UDim.new(0, 8),
+            Parent = GroupboxContainer,
+        })
+        New("UIPadding", {
+            PaddingBottom = UDim.new(0, 7),
+            PaddingLeft = UDim.new(0, 7),
+            PaddingRight = UDim.new(0, 7),
+            PaddingTop = UDim.new(0, 7),
+            Parent = GroupboxContainer,
+        })
+    end
+
+    local Groupbox = {
+        BoxHolder = BoxHolder,
+        Holder = GroupboxHolder,
+        Container = GroupboxContainer,
+
+        Tab = self,
+        DependencyBoxes = {},
+        Elements = {},
+        
+        IsFullBox = true,
+    }
+
+    function Groupbox:Resize()
+        GroupboxHolder.Size = UDim2.new(1, 0, 0, (GroupboxList.AbsoluteContentSize.Y / Library.DPIScale) + 49)
+    end
+
+    setmetatable(Groupbox, BaseGroupbox)
+
+    Groupbox:Resize()
+    self.Groupboxes[Name] = Groupbox
+
+    return Groupbox
+                            end          
+
         function Tab:AddTabbox(Info)
             local BoxHolder = New("Frame", {
                 AutomaticSize = Enum.AutomaticSize.Y,

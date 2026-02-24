@@ -1651,13 +1651,55 @@ do
     local WatermarkLabel = Library:AddDraggableLabel("")
     WatermarkLabel:SetVisible(false)
 
+    -- Модифицируем существующий WatermarkLabel
+    local WatermarkFrame = WatermarkLabel.Label
+    if WatermarkFrame then
+        -- Удаляем старый UICorner если есть
+        for _, child in pairs(WatermarkFrame:GetChildren()) do
+            if child:IsA("UICorner") then
+                child:Destroy()
+            end
+        end
+        
+        -- Добавляем новый UICorner с закруглением
+        local Corner = Instance.new("UICorner")
+        Corner.CornerRadius = UDim.new(0, 6) -- Радиус 6px
+        Corner.Parent = WatermarkFrame
+        
+        -- Находим UIPadding и увеличиваем отступы сверху/снизу
+        local Padding = WatermarkFrame:FindFirstChildOfClass("UIPadding")
+        if Padding then
+            -- Увеличиваем вертикальные отступы
+            Padding.PaddingTop = UDim.new(0, 10)  -- Было 6
+            Padding.PaddingBottom = UDim.new(0, 10) -- Было 6
+            -- Горизонтальные оставляем как есть
+            -- Padding.PaddingLeft = UDim.new(0, 12)
+            -- Padding.PaddingRight = UDim.new(0, 12)
+        end
+        
+        -- Принудительно обновляем размер
+        local Text = WatermarkFrame:FindFirstChildOfClass("TextLabel")
+        if Text then
+            local X, Y = Library:GetTextBounds(Text.Text, Library.Scheme.Font, 15)
+            WatermarkFrame.Size = UDim2.fromOffset(X + 24, Y + 20) -- +20 на вертикальные отступы
+        end
+    end
+
     function Library:SetWatermark(Text: string)
-        warn("Watermark is deprecated, please use Library:AddDraggableLabel instead.")
         WatermarkLabel:SetText(Text)
+        
+        -- Обновляем размер после смены текста
+        local WatermarkFrame = WatermarkLabel.Label
+        if WatermarkFrame then
+            local TextLabel = WatermarkFrame:FindFirstChildOfClass("TextLabel")
+            if TextLabel then
+                local X, Y = Library:GetTextBounds(Text, Library.Scheme.Font, 15)
+                WatermarkFrame.Size = UDim2.fromOffset(X + 24, Y + 20)
+            end
+        end
     end
 
     function Library:SetWatermarkVisibility(Visible: boolean)
-        warn("Watermark is deprecated, please use Library:AddDraggableLabel instead.")
         WatermarkLabel:SetVisible(Visible)
     end
 end

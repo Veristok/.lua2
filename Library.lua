@@ -4367,16 +4367,8 @@ do
     -- Локальные переменные для drag'а
     local dragging = false
     local touchId = nil
-
-    local function startDrag(input)
-        if Slider.Disabled then return end
-        dragging = true
-        touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
-
-        for _, side in Library.ActiveTab.Sides do
-            side.ScrollingEnabled = false
-        end
-    end
+    local inputChangedConn = nil
+    local inputEndedConn = nil
 
     local function updateDrag(input)
         if not dragging or Slider.Disabled then return end
@@ -4398,15 +4390,19 @@ do
         end
     end
 
-    local function endDrag(input)
+    local function stopDrag()
         if not dragging then return end
-        
-        if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= touchId then
-            return
-        end
-
         dragging = false
         touchId = nil
+
+        if inputChangedConn then
+            inputChangedConn:Disconnect()
+            inputChangedConn = nil
+        end
+        if inputEndedConn then
+            inputEndedConn:Disconnect()
+            inputEndedConn = nil
+        end
 
         for _, side in Library.ActiveTab.Sides do
             side.ScrollingEnabled = true
@@ -4415,29 +4411,55 @@ do
 
     -- Обработчики ввода
     Bar.InputBegan:Connect(function(input)
-        if IsClickInput(input) then
-            startDrag(input)
+        if IsClickInput(input) and not Slider.Disabled and not dragging then
+            dragging = true
+            touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
+
+            for _, side in Library.ActiveTab.Sides do
+                side.ScrollingEnabled = false
+            end
+            
+            -- Создаем новые соединения для этого слайдера
+            inputChangedConn = UserInputService.InputChanged:Connect(function(inp)
+                if dragging and IsHoverInput(inp) then
+                    updateDrag(inp)
+                end
+            end)
+            
+            inputEndedConn = UserInputService.InputEnded:Connect(function(inp)
+                if IsClickInput(inp) then
+                    stopDrag()
+                end
+            end)
+            
+            -- Сразу обновляем
             updateDrag(input)
         end
     end)
 
     Thumb.InputBegan:Connect(function(input)
-        if IsClickInput(input) then
-            startDrag(input)
+        if IsClickInput(input) and not Slider.Disabled and not dragging then
+            dragging = true
+            touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
+
+            for _, side in Library.ActiveTab.Sides do
+                side.ScrollingEnabled = false
+            end
+            
+            -- Создаем новые соединения для этого слайдера
+            inputChangedConn = UserInputService.InputChanged:Connect(function(inp)
+                if dragging and IsHoverInput(inp) then
+                    updateDrag(inp)
+                end
+            end)
+            
+            inputEndedConn = UserInputService.InputEnded:Connect(function(inp)
+                if IsClickInput(inp) then
+                    stopDrag()
+                end
+            end)
         end
     end)
-
-    Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
-        if dragging and IsHoverInput(input) then
-            updateDrag(input)
-        end
-    end))
-
-    Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
-        if IsClickInput(input) then
-            endDrag(input)
-        end
-    end))
 
     -- Визуальная обратная связь на ПК
     if not Library.IsMobile then

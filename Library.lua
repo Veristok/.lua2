@@ -4165,14 +4165,32 @@ do
     })
 
     local SliderLabel
+    local ValueLabel
     if not Info.Compact then
-        SliderLabel = New("TextLabel", {
+        -- Контейнер для текста и значения
+        local TextContainer = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 14),
+            Parent = Holder,
+        })
+        
+        SliderLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Size = UDim2.new(0.5, 0, 1, 0),
             Text = Slider.Text,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = Holder,
+            Parent = TextContainer,
+        })
+        
+        ValueLabel = New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(1, 0, 0, 0),
+            Size = UDim2.new(0.5, 0, 1, 0),
+            Text = "",
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Right,
+            Parent = TextContainer,
         })
     end
 
@@ -4215,12 +4233,12 @@ do
         Parent = Fill,
     })
 
-    -- Маленький круглый ползунок (12px)
+    -- Маленький круглый ползунок (12px) без обводки
     local Thumb = New("TextButton", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "FontColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(12, 12), -- Уменьшил до 12px
+        Size = UDim2.fromOffset(12, 12),
         Text = "",
         ZIndex = 3,
         Parent = Bar,
@@ -4230,28 +4248,7 @@ do
         CornerRadius = UDim.new(1, 0),
         Parent = Thumb,
     })
-    
-    New("UIStroke", {
-        Color = "OutlineColor",
-        Thickness = 1.5,
-        Parent = Thumb,
-    })
-
-    -- Текст для отображения значения
-    local DisplayLabel = New("TextLabel", {
-        BackgroundTransparency = 1,
-        Size = UDim2.fromScale(1, 1),
-        Text = "",
-        TextSize = 14,
-        ZIndex = 2,
-        Parent = Bar,
-    })
-    New("UIStroke", {
-        ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-        Color = "DarkColor",
-        LineJoinMode = Enum.LineJoinMode.Miter,
-        Parent = DisplayLabel,
-    })
+    -- Обводка УБРАНА!
 
     function Slider:UpdateColors()
         if Library.Unloaded then
@@ -4261,7 +4258,9 @@ do
         if SliderLabel then
             SliderLabel.TextTransparency = Slider.Disabled and 0.8 or 0
         end
-        DisplayLabel.TextTransparency = Slider.Disabled and 0.8 or 0
+        if ValueLabel then
+            ValueLabel.TextTransparency = Slider.Disabled and 0.8 or 0
+        end
 
         Track.BackgroundColor3 = Slider.Disabled and Library.Scheme.OutlineColor or Library.Scheme.MainColor
         Fill.BackgroundColor3 = Slider.Disabled and Library.Scheme.OutlineColor or Library.Scheme.AccentColor
@@ -4282,25 +4281,22 @@ do
             CustomDisplayText = Info.FormatDisplayValue(Slider, Slider.Value)
         end
 
+        local displayText
         if CustomDisplayText then
-            DisplayLabel.Text = tostring(CustomDisplayText)
+            displayText = tostring(CustomDisplayText)
         else
             if Info.Compact then
-                DisplayLabel.Text =
-                    string.format("%s: %s%s%s", Slider.Text, Slider.Prefix, Slider.Value, Slider.Suffix)
+                displayText = string.format("%s: %s%s%s", Slider.Text, Slider.Prefix, Slider.Value, Slider.Suffix)
             elseif Info.HideMax then
-                DisplayLabel.Text = string.format("%s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix)
+                displayText = string.format("%s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix)
             else
-                DisplayLabel.Text = string.format(
-                    "%s%s%s/%s%s%s",
-                    Slider.Prefix,
-                    Slider.Value,
-                    Slider.Suffix,
-                    Slider.Prefix,
-                    Slider.Max,
-                    Slider.Suffix
-                )
+                displayText = string.format("%s%s%s / %s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix, Slider.Prefix, Slider.Max, Slider.Suffix)
             end
+        end
+
+        -- Показываем значение справа сверху
+        if ValueLabel then
+            ValueLabel.Text = displayText
         end
 
         local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
@@ -4368,9 +4364,7 @@ do
         Slider.Text = Text
         if SliderLabel then
             SliderLabel.Text = Text
-            return
         end
-        Slider:Display()
     end
 
     function Slider:SetPrefix(Prefix: string)
@@ -4383,7 +4377,7 @@ do
         Slider:Display()
     end
 
-    -- Локальные переменные для drag'а (для каждого слайдера свои)
+    -- Локальные переменные для drag'а
     local dragging = false
     local touchId = nil
 
@@ -4401,10 +4395,8 @@ do
     end
 
     local function updateDrag(input)
-        -- Проверяем что drag'ается именно этот слайдер
         if not dragging or Slider.Disabled then return end
         
-        -- Для телефона проверяем ID касания
         if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= touchId then
             return
         end
@@ -4423,10 +4415,8 @@ do
     end
 
     local function endDrag(input)
-        -- Проверяем что это тот же слайдер
         if not dragging then return end
         
-        -- Для телефона проверяем ID касания
         if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= touchId then
             return
         end
@@ -4453,14 +4443,12 @@ do
         end
     end)
 
-    -- Используем InputChanged для обновления позиции
     Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
         if dragging and IsHoverInput(input) then
             updateDrag(input)
         end
     end))
 
-    -- Завершение drag'а
     Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
         if IsClickInput(input) then
             endDrag(input)

@@ -4364,25 +4364,74 @@ do
         Slider:Display()
     end
 
-    -- Локальные переменные для drag'а
-    local dragging = false
-    local touchId = nil
-    local inputChangedConn = nil
-    local inputEndedConn = nil
+    -- ВАЖНО: отдельные переменные для каждого слайдера
+    local isDragging = false
+    local currentTouchId = nil
+    local changeConn = nil
+    local endConn = nil
 
-    local function updateDrag(input)
-        if not dragging or Slider.Disabled then return end
-        
-        if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= touchId then
-            return
+    local function cleanup()
+        if changeConn then
+            changeConn:Disconnect()
+            changeConn = nil
         end
+        if endConn then
+            endConn:Disconnect()
+            endConn = nil
+        end
+        isDragging = false
+        currentTouchId = nil
+        
+        for _, side in Library.ActiveTab.Sides do
+            side.ScrollingEnabled = true
+        end
+    end
 
+    -- Начало драга
+    local function beginDrag(input)
+        if Slider.Disabled or isDragging then return end
+        
+        isDragging = true
+        currentTouchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
+        
+        for _, side in Library.ActiveTab.Sides do
+            side.ScrollingEnabled = false
+        end
+        
+        -- Создаем соединения ТОЛЬКО для этого слайдера
+        changeConn = UserInputService.InputChanged:Connect(function(inp)
+            if not isDragging then return end
+            if inp.UserInputType == Enum.UserInputType.Touch and inp.KeyCode ~= currentTouchId then return end
+            if not IsHoverInput(inp) then return end
+            
+            local location = Mouse.X
+            local scale = math.clamp((location - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
+            
+            local oldValue = Slider.Value
+            Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * scale), Slider.Rounding)
+            
+            if Slider.Value ~= oldValue then
+                Slider:Display()
+                Library:SafeCallback(Slider.Callback, Slider.Value)
+                Library:SafeCallback(Slider.Changed, Slider.Value)
+            end
+        end)
+        
+        endConn = UserInputService.InputEnded:Connect(function(inp)
+            if not isDragging then return end
+            if not IsClickInput(inp) then return end
+            if inp.UserInputType == Enum.UserInputType.Touch and inp.KeyCode ~= currentTouchId then return end
+            
+            cleanup()
+        end)
+        
+        -- Обновляем сразу
         local location = Mouse.X
         local scale = math.clamp((location - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
-
+        
         local oldValue = Slider.Value
         Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * scale), Slider.Rounding)
-
+        
         if Slider.Value ~= oldValue then
             Slider:Display()
             Library:SafeCallback(Slider.Callback, Slider.Value)
@@ -4390,74 +4439,16 @@ do
         end
     end
 
-    local function stopDrag()
-        if not dragging then return end
-        dragging = false
-        touchId = nil
-
-        if inputChangedConn then
-            inputChangedConn:Disconnect()
-            inputChangedConn = nil
-        end
-        if inputEndedConn then
-            inputEndedConn:Disconnect()
-            inputEndedConn = nil
-        end
-
-        for _, side in Library.ActiveTab.Sides do
-            side.ScrollingEnabled = true
-        end
-    end
-
-    -- Обработчики ввода
+    -- Обработчики
     Bar.InputBegan:Connect(function(input)
-        if IsClickInput(input) and not Slider.Disabled and not dragging then
-            dragging = true
-            touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
-
-            for _, side in Library.ActiveTab.Sides do
-                side.ScrollingEnabled = false
-            end
-            
-            -- Создаем новые соединения для этого слайдера
-            inputChangedConn = UserInputService.InputChanged:Connect(function(inp)
-                if dragging and IsHoverInput(inp) then
-                    updateDrag(inp)
-                end
-            end)
-            
-            inputEndedConn = UserInputService.InputEnded:Connect(function(inp)
-                if IsClickInput(inp) then
-                    stopDrag()
-                end
-            end)
-            
-            -- Сразу обновляем
-            updateDrag(input)
+        if IsClickInput(input) then
+            beginDrag(input)
         end
     end)
 
     Thumb.InputBegan:Connect(function(input)
-        if IsClickInput(input) and not Slider.Disabled and not dragging then
-            dragging = true
-            touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
-
-            for _, side in Library.ActiveTab.Sides do
-                side.ScrollingEnabled = false
-            end
-            
-            -- Создаем новые соединения для этого слайдера
-            inputChangedConn = UserInputService.InputChanged:Connect(function(inp)
-                if dragging and IsHoverInput(inp) then
-                    updateDrag(inp)
-                end
-            end)
-            
-            inputEndedConn = UserInputService.InputEnded:Connect(function(inp)
-                if IsClickInput(inp) then
-                    stopDrag()
-                end
-            end)
+        if IsClickInput(input) then
+            beginDrag(input)
         end
     end)
 
@@ -4494,7 +4485,7 @@ do
     Options[Idx] = Slider
 
     return Slider
-                end 
+                end
         
     function Funcs:AddDropdown(Idx, Info)
         Info = Library:Validate(Info, Templates.Dropdown)

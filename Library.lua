@@ -8034,25 +8034,64 @@ function Library:CreateWindow(WindowInfo)
     end
 
     if Library.IsMobile then
-        local ToggleButton = Library:AddDraggableButton("Toggle", function()
-            Library:Toggle()
-        end, true)
-
-        local LockButton = Library:AddDraggableButton("Lock", function(self)
-            Library.CantDragForced = not Library.CantDragForced
-            self:SetText(Library.CantDragForced and "Unlock" or "Lock")
-        end, true)
-
-        if WindowInfo.MobileButtonsSide == "Right" then
-            ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
-            ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
-
-            LockButton.Button.Position = UDim2.new(1, -6, 0, 46)
-            LockButton.Button.AnchorPoint = Vector2.new(1, 0)
-        else
-            LockButton.Button.Position = UDim2.fromOffset(6, 46)
+    -- Круглая кнопка Toggle с картинкой
+    local ToggleButton = Library:AddDraggableButton("", function()
+        Library:Toggle()
+    end, true)
+    
+    -- Делаем кнопку круглой
+    ToggleButton.Button.BackgroundTransparency = 1 -- Убираем фон
+    ToggleButton.Button.Size = UDim2.fromOffset(60, 60)
+    ToggleButton.Button.Text = ""
+    
+    -- Создаем картинку на всю кнопку
+    local ToggleImage = Instance.new("ImageLabel")
+    ToggleImage.Size = UDim2.fromScale(1, 1)
+    ToggleImage.Position = UDim2.fromScale(0.5, 0.5)
+    ToggleImage.AnchorPoint = Vector2.new(0.5, 0.5)
+    ToggleImage.BackgroundTransparency = 1
+    ToggleImage.Parent = ToggleButton.Button
+    
+    -- Делаем картинку круглой
+    local ImageCorner = Instance.new("UICorner")
+    ImageCorner.CornerRadius = UDim.new(1, 0)
+    ImageCorner.Parent = ToggleImage
+    
+    -- Добавляем обводку
+    Library:AddOutline(ToggleImage)
+    
+    -- Устанавливаем картинку если она указана
+    if WindowInfo.MobileToggleIcon then
+        ToggleImage.Image = "rbxassetid://" .. tostring(WindowInfo.MobileToggleIcon)
+    else
+        -- Если картинка не указана, используем иконку по умолчанию из библиотеки
+        local DefaultIcon = Library:GetIcon("menu")
+        if DefaultIcon then
+            ToggleImage.Image = DefaultIcon.Url
+            ToggleImage.ImageRectOffset = DefaultIcon.ImageRectOffset
+            ToggleImage.ImageRectSize = DefaultIcon.ImageRectSize
+            ToggleImage.ImageColor3 = Library.Scheme.AccentColor
         end
     end
+    
+    -- Кнопка Lock без изменений
+    local LockButton = Library:AddDraggableButton("Lock", function(self)
+        Library.CantDragForced = not Library.CantDragForced
+        self:SetText(Library.CantDragForced and "Unlock" or "Lock")
+    end, true)
+    
+    -- Позиционирование
+    if WindowInfo.MobileButtonsSide == "Right" then
+        ToggleButton.Button.Position = UDim2.new(1, -80, 0, 6)
+        ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
+        
+        LockButton.Button.Position = UDim2.new(1, -80, 0, 76)
+        LockButton.Button.AnchorPoint = Vector2.new(1, 0)
+    else
+        ToggleButton.Button.Position = UDim2.fromOffset(6, 6)
+        LockButton.Button.Position = UDim2.fromOffset(6, 76)
+    end
+end
 
     --// Execution \\--
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function()

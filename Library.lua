@@ -4159,14 +4159,14 @@ do
 
     local Holder = New("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 31),
+        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 39), -- Увеличил высоту для размещения элементов
         Visible = Slider.Visible,
         Parent = Container,
     })
 
     local SliderLabel
     if not Info.Compact then
-        -- Создаем контейнер для заголовка и суффикса
+        -- Контейнер для заголовка, значения и суффикса
         local TitleContainer = New("Frame", {
             BackgroundTransparency = 1,
             Size = UDim2.new(1, 0, 0, 14),
@@ -4183,20 +4183,20 @@ do
         -- Заголовок слайдера
         SliderLabel = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.7, 0, 1, 0),
+            Size = UDim2.new(0.6, 0, 1, 0),
             Text = Slider.Text,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = TitleContainer,
         })
 
-        -- Суффикс справа от заголовка
-        local SuffixLabel = New("TextLabel", {
+        -- Текущее значение и суффикс
+        local ValueSuffixLabel = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.3, -4, 1, 0),
-            Text = Slider.Suffix,
+            Size = UDim2.new(0.4, -4, 1, 0),
+            Text = "", -- Будет обновляться в Display()
             TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Left,
+            TextXAlignment = Enum.TextXAlignment.Right, -- Выравнивание вправо
             TextTransparency = 0.3,
             Parent = TitleContainer,
         })
@@ -4204,24 +4204,27 @@ do
         -- Функция для обновления суффикса
         function Slider:SetSuffix(NewSuffix)
             Slider.Suffix = NewSuffix
-            SuffixLabel.Text = NewSuffix
+            Slider:Display() -- Обновим отображение
         end
+
+        -- Сохраняем ссылку на лейбл значения
+        Slider.ValueLabel = ValueSuffixLabel
     end
 
-    -- Уменьшаем ширину слайдера в 2.5 раза и центрируем
+    -- Слайдер на всю ширину как и был
     local Bar = New("TextButton", {
         Active = not Slider.Disabled,
-        AnchorPoint = Vector2.new(0.5, 1), -- Центрируем по горизонтали
+        AnchorPoint = Vector2.new(0, 1),
         BackgroundColor3 = "MainColor",
         BorderColor3 = "OutlineColor",
         BorderSizePixel = 1,
-        Position = UDim2.fromScale(0.5, 1), -- Центрируем
-        Size = UDim2.new(0.4, 0, 0, 13), -- 1/2.5 = 0.4 (40% ширины)
+        Position = UDim2.fromScale(0, 1),
+        Size = UDim2.new(1, 0, 0, 13), -- Оставляем исходную ширину
         Text = "",
         Parent = Holder,
     })
 
-    -- Делаем овальную форму (полностью скругленные концы)
+    -- Овальная форма (скругленные края)
     New("UICorner", {
         CornerRadius = UDim.new(1, 0), -- Максимальное скругление для овала
         Parent = Bar,
@@ -4248,7 +4251,7 @@ do
         Parent = Bar,
     })
     
-    -- Тоже делаем овальной формы
+    -- Заполнение тоже с овальными краями
     New("UICorner", {
         CornerRadius = UDim.new(1, 0),
         Parent = Fill,
@@ -4280,6 +4283,11 @@ do
 
         if CustomDisplayText then
             DisplayLabel.Text = tostring(CustomDisplayText)
+            
+            -- Обновляем лейбл со значением и суффиксом
+            if Slider.ValueLabel then
+                Slider.ValueLabel.Text = string.format("%s%s", Slider.Value, Slider.Suffix)
+            end
         else
             if Info.Compact then
                 DisplayLabel.Text =
@@ -4296,6 +4304,11 @@ do
                     Slider.Max,
                     Slider.Suffix
                 )
+            end
+            
+            -- Обновляем лейбл со значением и суффиксом для отображения справа от названия
+            if Slider.ValueLabel then
+                Slider.ValueLabel.Text = string.format("%s%s", Slider.Value, Slider.Suffix)
             end
         end
 
@@ -4383,10 +4396,7 @@ do
 
         while IsDragInput(Input) do
             local Location = Mouse.X
-            -- Учитываем центрирование при расчете позиции
-            local BarLeft = Bar.AbsolutePosition.X
-            local BarRight = BarLeft + Bar.AbsoluteSize.X
-            local Scale = math.clamp((Location - BarLeft) / (BarRight - BarLeft), 0, 1)
+            local Scale = math.clamp((Location - Bar.AbsolutePosition.X) / Bar.AbsoluteSize.X, 0, 1)
 
             local OldValue = Slider.Value
             Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Slider.Rounding)
@@ -4422,7 +4432,7 @@ do
     Options[Idx] = Slider
 
     return Slider
-                end
+                end             
 
     function Funcs:AddDropdown(Idx, Info)
         Info = Library:Validate(Info, Templates.Dropdown)

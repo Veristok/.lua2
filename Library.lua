@@ -4176,11 +4176,11 @@ do
         })
     end
 
-    -- Bar container (для совместимости с оригинальным кодом)
+    -- Bar container
     local Bar = New("TextButton", {
         Active = not Slider.Disabled,
         AnchorPoint = Vector2.new(0, 1),
-        BackgroundTransparency = 1, -- Прозрачный фон, используем кастомный дизайн
+        BackgroundTransparency = 1,
         Position = UDim2.fromScale(0, 1),
         Size = UDim2.new(1, 0, 0, 13),
         Text = "",
@@ -4198,7 +4198,6 @@ do
         Parent = Bar,
     })
     
-    -- Скругленные углы для трека
     New("UICorner", {
         CornerRadius = UDim.new(1, 0),
         Parent = Track,
@@ -4211,37 +4210,34 @@ do
         Parent = Track,
     })
     
-    -- Скругленные углы для заполнения
     New("UICorner", {
         CornerRadius = UDim.new(1, 0),
         Parent = Fill,
     })
 
-    -- Круглый ползунок (делаем его текстовой кнопкой для лучшей обратной связи на телефоне)
+    -- Маленький круглый ползунок (12px)
     local Thumb = New("TextButton", {
         AnchorPoint = Vector2.new(0.5, 0.5),
         BackgroundColor3 = "FontColor",
         Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(Library.IsMobile and 20 or 16, Library.IsMobile and 20 or 16), -- Чуть больше на телефоне
+        Size = UDim2.fromOffset(12, 12), -- Уменьшил до 12px
         Text = "",
         ZIndex = 3,
         Parent = Bar,
     })
     
-    -- Делаем ползунок круглым
     New("UICorner", {
         CornerRadius = UDim.new(1, 0),
         Parent = Thumb,
     })
     
-    -- Добавляем обводку для ползунка
     New("UIStroke", {
         Color = "OutlineColor",
         Thickness = 1.5,
         Parent = Thumb,
     })
 
-    -- Текст для отображения значения (как в оригинале)
+    -- Текст для отображения значения
     local DisplayLabel = New("TextLabel", {
         BackgroundTransparency = 1,
         Size = UDim2.fromScale(1, 1),
@@ -4387,100 +4383,103 @@ do
         Slider:Display()
     end
 
-    -- Drag функционал (работает на ПК и телефоне)
-    local Dragging = false
-    local TouchId = nil
+    -- Локальные переменные для drag'а (для каждого слайдера свои)
+    local dragging = false
+    local touchId = nil
 
-    local function StartDrag(Input)
+    local function startDrag(input)
         if Slider.Disabled then return end
-        Dragging = true
+        dragging = true
         
-        -- Запоминаем ID касания для телефона
-        if Input.UserInputType == Enum.UserInputType.Touch then
-            TouchId = Input.KeyCode
+        if input.UserInputType == Enum.UserInputType.Touch then
+            touchId = input.KeyCode
         end
 
-        for _, Side in Library.ActiveTab.Sides do
-            Side.ScrollingEnabled = false
+        for _, side in Library.ActiveTab.Sides do
+            side.ScrollingEnabled = false
         end
     end
 
-    local function UpdateDrag(Input)
-        if not Dragging or Slider.Disabled then return end
+    local function updateDrag(input)
+        -- Проверяем что drag'ается именно этот слайдер
+        if not dragging or Slider.Disabled then return end
         
-        -- Проверяем что это то же касание на телефоне
-        if Input.UserInputType == Enum.UserInputType.Touch and Input.KeyCode ~= TouchId then
+        -- Для телефона проверяем ID касания
+        if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= touchId then
             return
         end
 
-        local Location = Mouse.X
-        local Scale = math.clamp((Location - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
+        local location = Mouse.X
+        local scale = math.clamp((location - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
 
-        local OldValue = Slider.Value
-        Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * Scale), Slider.Rounding)
+        local oldValue = Slider.Value
+        Slider.Value = Round(Slider.Min + ((Slider.Max - Slider.Min) * scale), Slider.Rounding)
 
-        Slider:Display()
-        if Slider.Value ~= OldValue then
+        if Slider.Value ~= oldValue then
+            Slider:Display()
             Library:SafeCallback(Slider.Callback, Slider.Value)
             Library:SafeCallback(Slider.Changed, Slider.Value)
         end
     end
 
-    local function EndDrag(Input)
-        if not Dragging then return end
+    local function endDrag(input)
+        -- Проверяем что это тот же слайдер
+        if not dragging then return end
         
-        -- Проверяем что это то же касание на телефоне
-        if Input.UserInputType == Enum.UserInputType.Touch and Input.KeyCode ~= TouchId then
+        -- Для телефона проверяем ID касания
+        if input.UserInputType == Enum.UserInputType.Touch and input.KeyCode ~= touchId then
             return
         end
 
-        Dragging = false
-        TouchId = nil
+        dragging = false
+        touchId = nil
 
-        for _, Side in Library.ActiveTab.Sides do
-            Side.ScrollingEnabled = true
+        for _, side in Library.ActiveTab.Sides do
+            side.ScrollingEnabled = true
         end
     end
 
-    -- Обработчики для мыши/касания
-    Bar.InputBegan:Connect(function(Input: InputObject)
-        if IsClickInput(Input) then
-            StartDrag(Input)
-            UpdateDrag(Input)
+    -- Обработчики ввода
+    Bar.InputBegan:Connect(function(input)
+        if IsClickInput(input) then
+            startDrag(input)
+            updateDrag(input)
         end
     end)
 
-    Thumb.InputBegan:Connect(function(Input: InputObject)
-        if IsClickInput(Input) then
-            StartDrag(Input)
+    Thumb.InputBegan:Connect(function(input)
+        if IsClickInput(input) then
+            startDrag(input)
         end
     end)
 
-    Library:GiveSignal(UserInputService.InputChanged:Connect(function(Input: InputObject)
-        if Dragging and IsHoverInput(Input) then
-            UpdateDrag(Input)
+    -- Используем InputChanged для обновления позиции
+    Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
+        if dragging and IsHoverInput(input) then
+            updateDrag(input)
         end
     end))
 
-    Library:GiveSignal(UserInputService.InputEnded:Connect(function(Input: InputObject)
-        if IsClickInput(Input) then
-            EndDrag(Input)
+    -- Завершение drag'а
+    Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
+        if IsClickInput(input) then
+            endDrag(input)
         end
     end))
 
-    -- Визуальная обратная связь (только для ПК)
+    -- Визуальная обратная связь на ПК
     if not Library.IsMobile then
         Thumb.MouseEnter:Connect(function()
             if Slider.Disabled then return end
             TweenService:Create(Thumb, Library.TweenInfo, {
-                Size = UDim2.fromOffset(20, 20)
+                Size = UDim2.fromOffset(14, 14)
             }):Play()
         end)
 
         Thumb.MouseLeave:Connect(function()
             if Slider.Disabled then return end
             TweenService:Create(Thumb, Library.TweenInfo, {
-                Size = UDim2.fromOffset(16, 16)
+                Size = UDim2.fromOffset(12, 12)
             }):Play()
         end)
     end
@@ -4501,7 +4500,7 @@ do
     Options[Idx] = Slider
 
     return Slider
-        end
+                end
 
     function Funcs:AddDropdown(Idx, Info)
         Info = Library:Validate(Info, Templates.Dropdown)

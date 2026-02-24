@@ -8034,25 +8034,79 @@ function Library:CreateWindow(WindowInfo)
     end
 
     if Library.IsMobile then
-        local ToggleButton = Library:AddDraggableButton("Toggle", function()
-            Library:Toggle()
-        end, true)
-
-        local LockButton = Library:AddDraggableButton("Lock", function(self)
-            Library.CantDragForced = not Library.CantDragForced
-            self:SetText(Library.CantDragForced and "Unlock" or "Lock")
-        end, true)
-
-        if WindowInfo.MobileButtonsSide == "Right" then
-            ToggleButton.Button.Position = UDim2.new(1, -6, 0, 6)
-            ToggleButton.Button.AnchorPoint = Vector2.new(1, 0)
-
-            LockButton.Button.Position = UDim2.new(1, -6, 0, 46)
-            LockButton.Button.AnchorPoint = Vector2.new(1, 0)
-        else
-            LockButton.Button.Position = UDim2.fromOffset(6, 46)
+    -- Удаляем старую кнопку если есть
+    local oldToggle = nil
+    for _, child in pairs(ScreenGui:GetChildren()) do
+        if child:IsA("TextButton") and child.Text == "Toggle" then
+            oldToggle = child
+            break
         end
     end
+    if oldToggle then oldToggle:Destroy() end
+
+    -- Удаляем Lock кнопку если есть
+    for _, child in pairs(ScreenGui:GetChildren()) do
+        if child:IsA("TextButton") and child.Text == "Lock" then
+            child:Destroy()
+            break
+        end
+    end
+
+    -- СОЗДАЕМ НОВУЮ КРУГЛУЮ КНОПКУ (уменьшена в 1.5 раза)
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Name = "MobileToggle"
+    ToggleButton.Size = UDim2.fromOffset(46, 46) -- Было 70, стало 46 (уменьшено в 1.5 раза)
+    ToggleButton.Position = WindowInfo.MobileButtonsSide == "Right" and UDim2.new(1, -60, 0, 10) or UDim2.fromOffset(10, 10)
+    ToggleButton.AnchorPoint = WindowInfo.MobileButtonsSide == "Right" and Vector2.new(1, 0) or Vector2.new(0, 0)
+    ToggleButton.BackgroundTransparency = 1
+    ToggleButton.Text = ""
+    ToggleButton.Parent = ScreenGui
+    
+    -- Делаем перетаскиваемой
+    Library:MakeDraggable(ToggleButton, ToggleButton, true)
+    
+    -- Функция открытия/закрытия
+    ToggleButton.MouseButton1Click:Connect(function()
+        Library:Toggle()
+    end)
+    
+    -- Делаем круглой
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(1, 0)
+    ButtonCorner.Parent = ToggleButton
+    
+    -- Картинка на всю кнопку
+    local ToggleImage = Instance.new("ImageLabel")
+    ToggleImage.Size = UDim2.fromScale(1, 1)
+    ToggleImage.Position = UDim2.fromScale(0.5, 0.5)
+    ToggleImage.AnchorPoint = Vector2.new(0.5, 0.5)
+    ToggleImage.BackgroundTransparency = 1
+    -- ЕСЛИ ЕСТЬ СВОЯ КАРТИНКА - СТАВИМ ЕЁ, ИНАЧЕ ИКОНКА ПО УМОЛЧАНИЮ
+    if WindowInfo.MobileToggleIcon then
+        ToggleImage.Image = "rbxassetid://" .. tostring(WindowInfo.MobileToggleIcon)
+    else
+        local DefaultIcon = Library:GetIcon("menu")
+        if DefaultIcon then
+            ToggleImage.Image = DefaultIcon.Url
+            ToggleImage.ImageRectOffset = DefaultIcon.ImageRectOffset
+            ToggleImage.ImageRectSize = DefaultIcon.ImageRectSize
+            ToggleImage.ImageColor3 = Library.Scheme.AccentColor
+        end
+    end
+    ToggleImage.ScaleType = Enum.ScaleType.Fit
+    ToggleImage.Parent = ToggleButton
+    
+    -- Делаем картинку круглой
+    local ImageCorner = Instance.new("UICorner")
+    ImageCorner.CornerRadius = UDim.new(1, 0)
+    ImageCorner.Parent = ToggleImage
+    
+    -- ТОНКАЯ ЧЕРНАЯ ОБВОДКА
+    local ImageStroke = Instance.new("UIStroke")
+    ImageStroke.Color = Color3.fromRGB(0, 0, 0) -- ЧЕРНЫЙ
+    ImageStroke.Thickness = 1.3 -- ТОНЬШЕ
+    ImageStroke.Parent = ToggleImage
+                            end
 
     --// Execution \\--
     SearchBox:GetPropertyChangedSignal("Text"):Connect(function()

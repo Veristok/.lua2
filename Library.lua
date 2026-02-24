@@ -4159,7 +4159,7 @@ do
 
     local Holder = New("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 31),
+        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 44), -- Увеличил высоту
         Visible = Slider.Visible,
         Parent = Container,
     })
@@ -4167,13 +4167,14 @@ do
     local SliderLabel
     local ValueLabel
     if not Info.Compact then
-        -- Контейнер для текста и значения
+        -- Контейнер для текста и значения (в одной строке)
         local TextContainer = New("Frame", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 14),
+            Size = UDim2.new(1, 0, 0, 20),
             Parent = Holder,
         })
         
+        -- Название слева
         SliderLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Size = UDim2.new(0.5, 0, 1, 0),
@@ -4183,6 +4184,7 @@ do
             Parent = TextContainer,
         })
         
+        -- Значение справа
         ValueLabel = New("TextLabel", {
             BackgroundTransparency = 1,
             Position = UDim2.new(1, 0, 0, 0),
@@ -4194,13 +4196,13 @@ do
         })
     end
 
-    -- Bar container
+    -- Bar container (сам слайдер)
     local Bar = New("TextButton", {
         Active = not Slider.Disabled,
         AnchorPoint = Vector2.new(0, 1),
         BackgroundTransparency = 1,
         Position = UDim2.fromScale(0, 1),
-        Size = UDim2.new(1, 0, 0, 13),
+        Size = UDim2.new(1, 0, 0, 20), -- Увеличил высоту для ползунка
         Text = "",
         Parent = Holder,
     })
@@ -4248,7 +4250,6 @@ do
         CornerRadius = UDim.new(1, 0),
         Parent = Thumb,
     })
-    -- Обводка УБРАНА!
 
     function Slider:UpdateColors()
         if Library.Unloaded then
@@ -4294,7 +4295,7 @@ do
             end
         end
 
-        -- Показываем значение справа сверху
+        -- Показываем значение справа от названия
         if ValueLabel then
             ValueLabel.Text = displayText
         end
@@ -4377,7 +4378,7 @@ do
         Slider:Display()
     end
 
-    -- Локальные переменные для drag'а
+    -- Локальные переменные для drag'а (для каждого слайдера свои)
     local dragging = false
     local touchId = nil
 

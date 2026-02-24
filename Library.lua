@@ -4159,52 +4159,44 @@ do
 
     local Holder = New("Frame", {
         BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 44), -- Увеличил высоту
+        Size = UDim2.new(1, 0, 0, Info.Compact and 13 or 31), -- Оригинальная высота
         Visible = Slider.Visible,
         Parent = Container,
     })
 
     local SliderLabel
-    local ValueLabel
     if not Info.Compact then
-        -- Контейнер для текста и значения (в одной строке)
-        local TextContainer = New("Frame", {
-            BackgroundTransparency = 1,
-            Size = UDim2.new(1, 0, 0, 20),
-            Parent = Holder,
-        })
-        
-        -- Название слева
         SliderLabel = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0.5, 0, 1, 0),
+            Size = UDim2.new(1, 0, 0, 14),
             Text = Slider.Text,
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = TextContainer,
-        })
-        
-        -- Значение справа
-        ValueLabel = New("TextLabel", {
-            BackgroundTransparency = 1,
-            Position = UDim2.new(1, 0, 0, 0),
-            Size = UDim2.new(0.5, 0, 1, 0),
-            Text = "",
-            TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Right,
-            Parent = TextContainer,
+            Parent = Holder,
         })
     end
 
-    -- Bar container (сам слайдер)
+    -- Bar container
     local Bar = New("TextButton", {
         Active = not Slider.Disabled,
         AnchorPoint = Vector2.new(0, 1),
         BackgroundTransparency = 1,
         Position = UDim2.fromScale(0, 1),
-        Size = UDim2.new(1, 0, 0, 20), -- Увеличил высоту для ползунка
+        Size = UDim2.new(1, 0, 0, 13),
         Text = "",
         Parent = Holder,
+    })
+
+    -- Контейнер для значения (справа)
+    local ValueLabel = New("TextLabel", {
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -40, 0, -20), -- Справа над слайдером
+        Size = UDim2.new(0, 40, 0, 14),
+        Text = "",
+        TextSize = 12,
+        TextXAlignment = Enum.TextXAlignment.Right,
+        ZIndex = 4,
+        Parent = Bar,
     })
 
     -- Овальный трек (фон)
@@ -4259,9 +4251,7 @@ do
         if SliderLabel then
             SliderLabel.TextTransparency = Slider.Disabled and 0.8 or 0
         end
-        if ValueLabel then
-            ValueLabel.TextTransparency = Slider.Disabled and 0.8 or 0
-        end
+        ValueLabel.TextTransparency = Slider.Disabled and 0.8 or 0
 
         Track.BackgroundColor3 = Slider.Disabled and Library.Scheme.OutlineColor or Library.Scheme.MainColor
         Fill.BackgroundColor3 = Slider.Disabled and Library.Scheme.OutlineColor or Library.Scheme.AccentColor
@@ -4282,22 +4272,18 @@ do
             CustomDisplayText = Info.FormatDisplayValue(Slider, Slider.Value)
         end
 
-        local displayText
         if CustomDisplayText then
-            displayText = tostring(CustomDisplayText)
+            ValueLabel.Text = tostring(CustomDisplayText)
         else
             if Info.Compact then
-                displayText = string.format("%s: %s%s%s", Slider.Text, Slider.Prefix, Slider.Value, Slider.Suffix)
+                ValueLabel.Text = string.format("%s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix)
             elseif Info.HideMax then
-                displayText = string.format("%s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix)
+                ValueLabel.Text = string.format("%s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix)
             else
-                displayText = string.format("%s%s%s / %s%s%s", Slider.Prefix, Slider.Value, Slider.Suffix, Slider.Prefix, Slider.Max, Slider.Suffix)
+                ValueLabel.Text = string.format("%s%s%s / %s%s%s", 
+                    Slider.Prefix, Slider.Value, Slider.Suffix, 
+                    Slider.Prefix, Slider.Max, Slider.Suffix)
             end
-        end
-
-        -- Показываем значение справа от названия
-        if ValueLabel then
-            ValueLabel.Text = displayText
         end
 
         local X = (Slider.Value - Slider.Min) / (Slider.Max - Slider.Min)
@@ -4385,10 +4371,7 @@ do
     local function startDrag(input)
         if Slider.Disabled then return end
         dragging = true
-        
-        if input.UserInputType == Enum.UserInputType.Touch then
-            touchId = input.KeyCode
-        end
+        touchId = input.UserInputType == Enum.UserInputType.Touch and input.KeyCode or nil
 
         for _, side in Library.ActiveTab.Sides do
             side.ScrollingEnabled = false
@@ -4402,7 +4385,10 @@ do
             return
         end
 
-        local location = Mouse.X
+        -- Используем позицию мыши или касания
+        local pos = input.Position
+        local location = pos.X
+        
         local scale = math.clamp((location - Track.AbsolutePosition.X) / Track.AbsoluteSize.X, 0, 1)
 
         local oldValue = Slider.Value
@@ -4444,17 +4430,23 @@ do
         end
     end)
 
-    Library:GiveSignal(UserInputService.InputChanged:Connect(function(input)
+    -- Отслеживаем движение
+    local connection
+    connection = UserInputService.InputChanged:Connect(function(input)
         if dragging and IsHoverInput(input) then
             updateDrag(input)
         end
-    end))
+    end)
+    table.insert(Library.Signals, connection)
 
-    Library:GiveSignal(UserInputService.InputEnded:Connect(function(input)
+    -- Отслеживаем отпускание
+    local endConnection
+    endConnection = UserInputService.InputEnded:Connect(function(input)
         if IsClickInput(input) then
             endDrag(input)
         end
-    end))
+    end)
+    table.insert(Library.Signals, endConnection)
 
     -- Визуальная обратная связь на ПК
     if not Library.IsMobile then
@@ -4490,7 +4482,7 @@ do
 
     return Slider
                 end
-
+        
     function Funcs:AddDropdown(Idx, Info)
         Info = Library:Validate(Info, Templates.Dropdown)
 

@@ -4126,9 +4126,6 @@ do
         return Input
     end
 
-    
-        })
-
     function Funcs:AddSlider(Idx, Info)
     Info = Library:Validate(Info, Templates.Slider)
 
